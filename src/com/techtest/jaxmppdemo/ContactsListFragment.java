@@ -149,4 +149,9 @@ public class ContactsListFragment extends ListFragment {
 
         mActivatedPosition = position;
     }
+
+    public void setSessionId(int mSessionId) {
+        // TODO Auto-generated method stub
+
+    }
 }

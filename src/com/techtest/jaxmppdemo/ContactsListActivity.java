@@ -1,24 +1,8 @@
 package com.techtest.jaxmppdemo;
 
-import java.util.List;
-
-import tigase.jaxmpp.core.client.BareJID;
-import tigase.jaxmpp.core.client.SessionObject;
-import tigase.jaxmpp.core.client.exceptions.JaxmppException;
-import tigase.jaxmpp.core.client.factory.UniversalFactory;
-import tigase.jaxmpp.core.client.factory.UniversalFactory.FactorySpi;
-import tigase.jaxmpp.core.client.observer.Listener;
-import tigase.jaxmpp.core.client.xmpp.modules.presence.PresenceModule;
-import tigase.jaxmpp.core.client.xmpp.modules.presence.PresenceModule.PresenceEvent;
-import tigase.jaxmpp.core.client.xmpp.modules.roster.RosterItem;
-import tigase.jaxmpp.core.client.xmpp.modules.roster.RosterStore;
-import tigase.jaxmpp.j2se.Jaxmpp;
-import tigase.jaxmpp.j2se.connectors.socket.SocketConnector.DnsResolver;
 import android.content.Intent;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.app.FragmentActivity;
-import android.util.Log;
 
 /**
  * An activity representing a list of Contact. This activity has different
@@ -39,16 +23,23 @@ import android.util.Log;
 public class ContactsListActivity extends FragmentActivity implements
         ContactsListFragment.Callbacks {
 
+    public static final String BUNDLE_SESSION_ID = "sessionid";
+
     /**
      * Whether or not the activity is in two-pane mode, i.e. running on a tablet
      * device.
      */
     private boolean mTwoPane;
 
+    private int mSessionId;
+    private ContactsListFragment mContactsListFrag;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_contacts_list);
+
+        mSessionId = getIntent().getExtras().getInt(BUNDLE_SESSION_ID);
 
         if (findViewById(R.id.contacts_detail_container) != null) {
             // The detail container view will be present only in the
@@ -59,85 +50,11 @@ public class ContactsListActivity extends FragmentActivity implements
 
             // In two-pane mode, list items should be given the
             // 'activated' state when touched.
-            ((ContactsListFragment) getSupportFragmentManager()
-                    .findFragmentById(R.id.contacts_list))
-                    .setActivateOnItemClick(true);
-        }
+            mContactsListFrag = (ContactsListFragment) getSupportFragmentManager().
+                    findFragmentById(R.id.contacts_list));
 
-        // TODO: If exposing deep links into your app, handle intents here.
-        new TestAsync().execute();
-    }
-
-    private class TestAsync extends AsyncTask<Void, Void, Void> {
-
-        @Override
-        protected Void doInBackground(Void... params) {
-
-            UniversalFactory.setSpi(DnsResolver.class.getName(), new FactorySpi() {
-
-                @Override
-                public AndroidDNSResolver create() {
-                    return new AndroidDNSResolver();
-                }
-            });
-
-            try {
-
-               // InetAddress bob = new Inet
-                //Socket sock = new Socket(dstAddress, 5222);
-
-                final Jaxmpp contact = new Jaxmpp();
-
-                contact.getModulesManager().getModule( PresenceModule.class ).
-                    addListener( PresenceModule.ContactChangedPresence,
-                            new Listener<PresenceModule.PresenceEvent>() {
-
-                    @Override
-                    public void handleEvent( PresenceEvent be ) throws JaxmppException {
-                        System.out.println( String.format( "Presence received:\t %1$s is now %2$s (%3$s)", be.getJid(), be.getShow(), be.getStatus() != null ? be.getStatus() : "none" ) );
-                    }
-                } );
-
-                contact.getProperties().setUserProperty(
-                        SessionObject.DOMAIN_NAME, "talk.google.com");
-                contact.getProperties().setUserProperty(
-                        SessionObject.USER_BARE_JID, BareJID.bareJIDInstance("brian.mcdermott13@gmail.com" ) );
-                contact.getProperties().setUserProperty(
-                        SessionObject.PASSWORD, "drogheda82" );
-
-                System.out.println( "Loging in..." );
-
-                contact.login();
-                RosterStore store = contact.getRoster();
-                List<RosterItem> rosters = store.getAll();
-                for(RosterItem item : rosters) {
-                    System.out.println("Thing is : " + item.getName());
-                }
-
-                System.out.println( "Waiting for the presence for 10 minutes" );
-
-                Thread.sleep( 10 * 60 * 1000 );
-
-                //contact.sendMessage(JID.jidInstance("user@test.domain"), "Test", "This is a test");
-
-                Thread.sleep( 2 * 60 * 1000 );
-
-                contact.disconnect();
-            }
-            catch(JaxmppException ex) {
-                Log.e("Steo", "Bob" + ex.getMessage());
-            }
-            catch(InterruptedException ex) {
-                Log.e("Steo", "Bob" + ex.getMessage());
-            }
-
-            return null;
-        }
-
-        @Override
-        protected void onPostExecute(Void result) {
-            // TODO Auto-generated method stub
-            super.onPostExecute(result);
+            mContactsListFrag.setActivateOnItemClick(true);
+            mContactsListFrag.setSessionId(mSessionId);
         }
     }
 
