@@ -1,38 +1,32 @@
 package com.techtest.jaxmppdemo;
 
-import android.content.Intent;
-import android.os.Bundle;
-import android.support.v4.app.FragmentActivity;
+import java.util.List;
 
-/**
- * An activity representing a list of Contact. This activity has different
- * presentations for handset and tablet-size devices. On handsets, the activity
- * presents a list of items, which when touched, lead to a
- * {@link ContactsDetailActivity} representing item details. On tablets, the
- * activity presents the list of items and item details side-by-side using two
- * vertical panes.
- * <p>
- * The activity makes heavy use of fragments. The list of items is a
- * {@link ContactsListFragment} and the item details (if present) is a
- * {@link ContactsDetailFragment}.
- * <p>
- * This activity also implements the required
- * {@link ContactsListFragment.Callbacks} interface to listen for item
- * selections.
- */
-public class ContactsListActivity extends FragmentActivity implements
-        ContactsListFragment.Callbacks {
+import tigase.jaxmpp.core.client.xmpp.modules.roster.RosterItem;
+import android.content.Context;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemClickListener;
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import com.techtest.jaxmppdemo.GtalkService.OnMessageSent;
+
+public class ContactsListActivity extends ServiceActivity {
+
+    private static final String TEST_MESSAGE = "Greetings from the Jaxmpp Demo-Bot";
+
+    private final String LOG_TAG = getClass().getSimpleName();
 
     public static final String BUNDLE_SESSION_ID = "sessionid";
 
-    /**
-     * Whether or not the activity is in two-pane mode, i.e. running on a tablet
-     * device.
-     */
-    private boolean mTwoPane;
-
     private int mSessionId;
-    private ContactsListFragment mContactsListFrag;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,47 +34,83 @@ public class ContactsListActivity extends FragmentActivity implements
         setContentView(R.layout.activity_contacts_list);
 
         mSessionId = getIntent().getExtras().getInt(BUNDLE_SESSION_ID);
-
-        if (findViewById(R.id.contacts_detail_container) != null) {
-            // The detail container view will be present only in the
-            // large-screen layouts (res/values-large and
-            // res/values-sw600dp). If this view is present, then the
-            // activity should be in two-pane mode.
-            mTwoPane = true;
-
-            // In two-pane mode, list items should be given the
-            // 'activated' state when touched.
-            mContactsListFrag = (ContactsListFragment) getSupportFragmentManager().
-                    findFragmentById(R.id.contacts_list));
-
-            mContactsListFrag.setActivateOnItemClick(true);
-            mContactsListFrag.setSessionId(mSessionId);
-        }
     }
 
-    /**
-     * Callback method from {@link ContactsListFragment.Callbacks} indicating
-     * that the item with the given ID was selected.
-     */
     @Override
-    public void onItemSelected(String id) {
-        if (mTwoPane) {
-            // In two-pane mode, show the detail view in this activity by
-            // adding or replacing the detail fragment using a
-            // fragment transaction.
-            Bundle arguments = new Bundle();
-            arguments.putString(ContactsDetailFragment.ARG_ITEM_ID, id);
-            ContactsDetailFragment fragment = new ContactsDetailFragment();
-            fragment.setArguments(arguments);
-            getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.contacts_detail_container, fragment).commit();
+    protected void onServiceConnected() {
 
-        } else {
-            // In single-pane mode, simply start the detail activity
-            // for the selected item ID.
-            Intent detailIntent = new Intent(this, ContactsDetailActivity.class);
-            detailIntent.putExtra(ContactsDetailFragment.ARG_ITEM_ID, id);
-            startActivity(detailIntent);
+        ListView lv = (ListView) findViewById(R.id.contacts_list);
+
+        final List<RosterItem> contacts = mBinder.getContacts(mSessionId);
+        lv.setAdapter(new ContactsAdapter(this, android.R.layout.simple_list_item_1, contacts));
+
+        lv.setOnItemClickListener(new OnItemClickListener() {
+
+            @Override
+            public void onItemClick(AdapterView<?> arg0, View view, int position,
+                    long id) {
+
+                RosterItem contact = contacts.get(position);
+
+                Log.i(LOG_TAG, "Sending message to " + contact.getJid().getLocalpart());
+                mBinder.sendMessage(TEST_MESSAGE, contact, mSessionId, new OnMessageSent() {
+
+                    @Override
+                    public void onMessageSent() {
+                        String hdr = getResources().getString(R.string.message_sent);
+                        Toast.makeText(ContactsListActivity.this, hdr, Toast.LENGTH_SHORT).show();
+                    }
+
+                    @Override
+                    public void onMessageFailed() {
+                        String hdr = getResources().getString(R.string.message_error);
+                        Toast.makeText(ContactsListActivity.this, hdr, Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
+    }
+
+    @Override
+    protected void onServiceDisaconnected() {
+        // TODO Auto-generated method stub
+
+    }
+
+    private class ContactsAdapter extends ArrayAdapter<RosterItem> {
+
+        private final int mTextViewRes;
+        private List<RosterItem> mContacts;
+
+        public ContactsAdapter(Context context, int textViewResourceId) {
+            super(context, textViewResourceId);
+            mTextViewRes = textViewResourceId;
+        }
+
+        public ContactsAdapter(Context context, int textViewResourceId, List<RosterItem> contacts) {
+            super(context, textViewResourceId, contacts);
+            mContacts = contacts;
+            mTextViewRes = textViewResourceId;
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+
+            View view = convertView;
+            if (view == null) {
+
+                LayoutInflater vi = LayoutInflater.from(getContext());
+                view = vi.inflate(mTextViewRes, null);
+
+            }
+
+            final RosterItem contact = mContacts.get(position);
+
+            TextView tv = (TextView)view;
+            tv.setText(contact.getJid().getLocalpart());
+
+            return view;
+
         }
     }
 }

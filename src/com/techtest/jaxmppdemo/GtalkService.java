@@ -1,10 +1,15 @@
 package com.techtest.jaxmppdemo;
 
+import java.util.List;
+
 import tigase.jaxmpp.core.client.BareJID;
+import tigase.jaxmpp.core.client.JID;
 import tigase.jaxmpp.core.client.SessionObject;
 import tigase.jaxmpp.core.client.exceptions.JaxmppException;
 import tigase.jaxmpp.core.client.factory.UniversalFactory;
 import tigase.jaxmpp.core.client.factory.UniversalFactory.FactorySpi;
+import tigase.jaxmpp.core.client.xml.XMLException;
+import tigase.jaxmpp.core.client.xmpp.modules.roster.RosterItem;
 import tigase.jaxmpp.j2se.Jaxmpp;
 import tigase.jaxmpp.j2se.connectors.socket.SocketConnector.DnsResolver;
 import android.app.Service;
@@ -25,6 +30,11 @@ public class GtalkService extends Service {
     public static interface OnLoginComplete {
         public void onLoginComplete(int sessionId);
         public void onLoginFailure();
+    }
+
+    public static interface OnMessageSent {
+        public void onMessageSent();
+        public void onMessageFailed();
     }
 
     public static class LoginDetails {
@@ -48,6 +58,8 @@ public class GtalkService extends Service {
          */
         public int login(LoginDetails loginDetails);
         public void cancelLogin(int sessionId);
+        public List<RosterItem> getContacts(int sessionId);
+        public void sendMessage(String message, RosterItem contact, int sessionId, OnMessageSent callback);
     }
 
 
@@ -65,6 +77,16 @@ public class GtalkService extends Service {
         public void cancelLogin(int sessionId) {
             GtalkService.this.cancelLogin(sessionId);
         }
+
+        @Override
+        public List<RosterItem> getContacts(int sessionId) {
+            return GtalkService.this.getContacts(sessionId);
+        }
+
+        @Override
+        public void sendMessage(String message, RosterItem contact, int sessionId, OnMessageSent callback){
+            GtalkService.this.sendMessage(message, contact, sessionId, callback);
+        }
     }
 
     private final GtalkBinderImpl mBinder = new GtalkBinderImpl();
@@ -72,6 +94,78 @@ public class GtalkService extends Service {
     @Override
     public IBinder onBind(Intent intent) {
         return mBinder;
+    }
+
+    public void sendMessage(final String message, final RosterItem contact,
+            int sessionId, final OnMessageSent callback) {
+
+        final Jaxmpp session = mSessions.get(sessionId);
+        if(session == null) {
+            throw new IllegalStateException("Trying to get contacts and not logged in");
+        }
+
+        new SendMessageAsyncTask(message, contact, sessionId, callback).execute();
+    }
+
+    private class SendMessageAsyncTask extends AsyncTask<Void, Void, Boolean> {
+
+        private final RosterItem mContact;
+        private final String mMessage;
+        private final int mSessionId;
+        private final OnMessageSent mCallback;  //TODO: Should be cancellable
+
+        public SendMessageAsyncTask(final String message, final RosterItem contact,
+                int sessionId, final OnMessageSent callback) {
+            mSessionId = sessionId;
+            mContact = contact;
+            mMessage = message;
+            mCallback = callback;
+        }
+
+        @Override
+        protected Boolean doInBackground(Void... params) {
+
+            final Jaxmpp session = mSessions.get(mSessionId);
+            if(session == null) {
+                return false;
+            }
+
+            try {
+                session.sendMessage(JID.jidInstance(mContact.getJid()), "test", mMessage);
+            } catch (XMLException e) {
+
+                e.printStackTrace();
+                return false;
+
+            } catch (JaxmppException e) {
+
+                e.printStackTrace();
+                return false;
+
+            }
+            return true;
+        }
+
+        @Override
+        protected void onPostExecute(Boolean result) {
+
+            if(result) {
+                mCallback.onMessageSent();
+            }
+            else {
+                mCallback.onMessageFailed();
+            }
+        }
+    }
+
+    public List<RosterItem> getContacts(int sessionId) {
+
+        Jaxmpp session = mSessions.get(sessionId);
+        if(session == null) {
+            throw new IllegalStateException("Trying to get contacts and not logged in");
+        }
+
+        return session.getRoster().getAll();
     }
 
     public void cancelLogin(int sessionId) {
