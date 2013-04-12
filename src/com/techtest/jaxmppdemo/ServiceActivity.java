@@ -25,7 +25,7 @@ public abstract class ServiceActivity extends FragmentActivity {
 
         @Override
         public void onServiceDisconnected(ComponentName name) {
-            onServiceDisaconnected();
+            ServiceActivity.this.onServiceDisconnected();
             mBinder = null;
         }
     }
@@ -48,5 +48,5 @@ public abstract class ServiceActivity extends FragmentActivity {
     }
 
     protected abstract void onServiceConnected();
-    protected abstract void onServiceDisaconnected();
+    protected abstract void onServiceDisconnected();
 }

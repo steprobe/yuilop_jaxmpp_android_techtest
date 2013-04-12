@@ -46,8 +46,9 @@ public class LoginActivity extends ServiceActivity implements OnLoginComplete {
 
     @Override
     protected void onDestroy() {
-        if(mBinder != null) {
-            mBinder.cancelLogin(mCurrentSessionId);
+        if(mCurrentLoginDetails != null) {
+            //Don't want to be told anymore
+            mCurrentLoginDetails.callback = null;
         }
 
         super.onDestroy();
@@ -77,6 +78,6 @@ public class LoginActivity extends ServiceActivity implements OnLoginComplete {
     }
 
     @Override
-    protected void onServiceDisaconnected() {
+    protected void onServiceDisconnected() {
     }
 }

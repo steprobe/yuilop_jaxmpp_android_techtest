@@ -12,5 +12,6 @@
     <string name="login_successful">Login Succeeded</string>
     <string name="message_error">Failed to send message</string>
     <string name="message_sent">Message sent</string>
+    <string name="error">Error: </string>
 
 </resources>

@@ -51,13 +51,14 @@ public class GtalkService extends Service {
 
     public interface GtalkBinder {
 
+        //TODO: Doesn't logout at all but not difficult to add a call to disconnect
+
         /**
          * Returns a session ID which is the currency for all future calls
          * @param loginDetails
          * @return
          */
         public int login(LoginDetails loginDetails);
-        public void cancelLogin(int sessionId);
         public List<RosterItem> getContacts(int sessionId);
         public void sendMessage(String message, RosterItem contact, int sessionId, OnMessageSent callback);
     }
@@ -71,11 +72,6 @@ public class GtalkService extends Service {
         @Override
         public int login(LoginDetails loginDetails) {
             return GtalkService.this.login(loginDetails);
-        }
-
-        @Override
-        public void cancelLogin(int sessionId) {
-            GtalkService.this.cancelLogin(sessionId);
         }
 
         @Override
@@ -131,7 +127,8 @@ public class GtalkService extends Service {
             }
 
             try {
-                session.sendMessage(JID.jidInstance(mContact.getJid()), "test", mMessage);
+                session.sendMessage(JID.jidInstance(mContact.getJid()),
+                        "test", mMessage);
             } catch (XMLException e) {
 
                 e.printStackTrace();
@@ -162,14 +159,11 @@ public class GtalkService extends Service {
 
         Jaxmpp session = mSessions.get(sessionId);
         if(session == null) {
-            throw new IllegalStateException("Trying to get contacts and not logged in");
+            //TODO: If showing to user, sanitise via strings.xml
+            throw new IllegalStateException("Contacts unavailable as not logged in");
         }
 
         return session.getRoster().getAll();
-    }
-
-    public void cancelLogin(int sessionId) {
-        mLogins.remove(sessionId);
     }
 
     public int login(LoginDetails loginDetails) {
@@ -211,6 +205,8 @@ public class GtalkService extends Service {
                 contact.getProperties().setUserProperty(SessionObject.PASSWORD, details.password );
 
                 Log.v(LOG_TAG, "Logging in as " + details.username + " and pw " + details.password);
+
+                //TODO: With invalid password this sometimes doesnt throw an error??
                 contact.login();
 
                 Log.v(LOG_TAG, "Login ok");
@@ -234,11 +230,14 @@ public class GtalkService extends Service {
                 return;
             }
 
-            if(result) {
+            if(result && details.callback != null) {
                 details.callback.onLoginComplete(mId);
             }
             else {
-                details.callback.onLoginFailure();
+                if(details.callback != null) {
+                    details.callback.onLoginFailure();
+                }
+
                 mLogins.remove(mId);
             }
         }

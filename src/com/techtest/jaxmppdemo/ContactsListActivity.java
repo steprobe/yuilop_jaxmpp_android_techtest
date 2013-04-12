@@ -41,8 +41,19 @@ public class ContactsListActivity extends ServiceActivity {
 
         ListView lv = (ListView) findViewById(R.id.contacts_list);
 
-        final List<RosterItem> contacts = mBinder.getContacts(mSessionId);
-        lv.setAdapter(new ContactsAdapter(this, android.R.layout.simple_list_item_1, contacts));
+        final List<RosterItem> contacts;
+
+        try {
+            contacts = mBinder.getContacts(mSessionId);
+        }
+        catch(IllegalStateException ex) {
+            Toast.makeText(this, ex.getMessage(), Toast.LENGTH_SHORT);
+            finish();
+            return;
+        }
+
+        lv.setAdapter(new ContactsAdapter(this, android.R.layout.simple_list_item_1,
+                contacts));
 
         lv.setOnItemClickListener(new OnItemClickListener() {
 
@@ -72,8 +83,7 @@ public class ContactsListActivity extends ServiceActivity {
     }
 
     @Override
-    protected void onServiceDisaconnected() {
-        // TODO Auto-generated method stub
+    protected void onServiceDisconnected() {
 
     }
 
